@@ -136,4 +136,29 @@ describe("executeSubagentQuery query_start_timeout retry", () => {
     await expect(executeSubagentQuery(baseOptions)).rejects.toThrow(/query_start_timeout/i);
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
+
+  it("passes model option to query when provided", async () => {
+    queryMock.mockImplementationOnce(makeDelayedSuccess(0, "ok"));
+
+    await executeSubagentQuery({
+      ...baseOptions,
+      model: "opus",
+    });
+
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    const callOptions = queryMock.mock.calls[0][0];
+    expect(callOptions.options).toHaveProperty("model", "opus");
+  });
+
+  it("uses default model when model option is not provided", async () => {
+    queryMock.mockImplementationOnce(makeDelayedSuccess(0, "ok"));
+
+    await executeSubagentQuery({
+      ...baseOptions,
+    });
+
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    const callOptions = queryMock.mock.calls[0][0];
+    expect(callOptions.options).toHaveProperty("model", "sonnet");
+  });
 });

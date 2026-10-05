@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { validateEnv } from "../env.js";
+import { validateEnv, resolveModel, modelOption } from "../env.js";
 
 describe("env validation", () => {
   beforeEach(() => {
@@ -122,5 +122,74 @@ describe("env validation", () => {
     const { getEnv } = await import("../env.js");
     expect(() => getEnv()).toThrow("Environment validation failed");
     vi.unstubAllEnvs();
+  });
+
+  it("should accept optional model env vars", () => {
+    const result = validateEnv({
+      PLANNER_MODEL: "sonnet",
+      PLAN_CHECKER_MODEL: "haiku",
+      IMPLEMENTER_MODEL: "opus",
+      REVIEWER_MODEL: "sonnet",
+      SECURITY_REVIEWER_MODEL: "opus",
+      FAST_FIX_MODEL: "haiku",
+      ROADMAP_MODEL: "sonnet",
+      ROADMAP_EXTRACTION_MODEL: "haiku",
+    });
+
+    expect(result.PLANNER_MODEL).toBe("sonnet");
+    expect(result.PLAN_CHECKER_MODEL).toBe("haiku");
+    expect(result.IMPLEMENTER_MODEL).toBe("opus");
+    expect(result.REVIEWER_MODEL).toBe("sonnet");
+    expect(result.SECURITY_REVIEWER_MODEL).toBe("opus");
+    expect(result.FAST_FIX_MODEL).toBe("haiku");
+    expect(result.ROADMAP_MODEL).toBe("sonnet");
+    expect(result.ROADMAP_EXTRACTION_MODEL).toBe("haiku");
+  });
+
+  it("model vars should be undefined when not set", () => {
+    const result = validateEnv({});
+    expect(result.PLANNER_MODEL).toBeUndefined();
+    expect(result.PLAN_CHECKER_MODEL).toBeUndefined();
+    expect(result.IMPLEMENTER_MODEL).toBeUndefined();
+    expect(result.REVIEWER_MODEL).toBeUndefined();
+    expect(result.SECURITY_REVIEWER_MODEL).toBeUndefined();
+    expect(result.FAST_FIX_MODEL).toBeUndefined();
+    expect(result.ROADMAP_MODEL).toBeUndefined();
+    expect(result.ROADMAP_EXTRACTION_MODEL).toBeUndefined();
+  });
+});
+
+describe("resolveModel", () => {
+  it("returns env value when set", () => {
+    expect(resolveModel("opus", "sonnet")).toBe("opus");
+  });
+
+  it("returns fallback when env value is undefined", () => {
+    expect(resolveModel(undefined, "sonnet")).toBe("sonnet");
+  });
+
+  it("returns fallback when env value is empty string", () => {
+    expect(resolveModel("", "haiku")).toBe("haiku");
+  });
+
+  it("returns fallback when env value is whitespace only", () => {
+    expect(resolveModel("   ", "sonnet")).toBe("sonnet");
+  });
+
+  it("trims whitespace from env value", () => {
+    expect(resolveModel("  opus  ", "sonnet")).toBe("opus");
+  });
+});
+
+describe("modelOption with ANTHROPIC_BASE_URL", () => {
+  it("returns model when no base URL is set", () => {
+    delete process.env.ANTHROPIC_BASE_URL;
+    expect(modelOption("haiku")).toEqual({ model: "haiku" });
+  });
+
+  it("returns empty object when ANTHROPIC_BASE_URL is set", () => {
+    process.env.ANTHROPIC_BASE_URL = "https://proxy.example.com";
+    expect(modelOption("haiku")).toEqual({});
+    delete process.env.ANTHROPIC_BASE_URL;
   });
 });

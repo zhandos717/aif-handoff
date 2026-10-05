@@ -1,5 +1,5 @@
 import { findProjectById, findTaskById, setTaskFields } from "@aif/data";
-import { logger, formatAttachmentsForPrompt } from "@aif/shared";
+import { logger, formatAttachmentsForPrompt, getEnv, resolveModel } from "@aif/shared";
 import { logActivity } from "../hooks.js";
 import { executeSubagentQuery, startHeartbeat } from "../subagentQuery.js";
 
@@ -12,6 +12,7 @@ async function runSidecar(
   agentName: string,
   maxBudgetUsd: number | null,
   useSubagentAgent: boolean,
+  model: string,
 ): Promise<string> {
   const { resultText } = await executeSubagentQuery({
     taskId,
@@ -20,6 +21,7 @@ async function runSidecar(
     prompt,
     maxBudgetUsd,
     agent: useSubagentAgent ? agentName : undefined,
+    model,
   });
   return resultText;
 }
@@ -35,6 +37,9 @@ export async function runReviewer(taskId: string, projectRoot: string): Promise<
   const project = findProjectById(task.projectId);
   const sidecarBudget = project?.reviewSidecarMaxBudgetUsd ?? null;
   const useSubagents = task.useSubagents;
+  const env = getEnv();
+  const reviewerModel = resolveModel(env.REVIEWER_MODEL, "sonnet");
+  const securityReviewerModel = resolveModel(env.SECURITY_REVIEWER_MODEL, "sonnet");
 
   log.info({ taskId, title: task.title, useSubagents }, "Starting review stage");
 
@@ -73,8 +78,24 @@ Focus on auth, validation, secrets, injection, and unsafe shell/file handling in
     try {
       if (useSubagents) {
         [reviewResult, securityResult] = await Promise.all([
-          runSidecar(reviewPrompt, taskId, projectRoot, reviewAgentName, sidecarBudget, true),
-          runSidecar(securityPrompt, taskId, projectRoot, securityAgentName, sidecarBudget, true),
+          runSidecar(
+            reviewPrompt,
+            taskId,
+            projectRoot,
+            reviewAgentName,
+            sidecarBudget,
+            true,
+            reviewerModel,
+          ),
+          runSidecar(
+            securityPrompt,
+            taskId,
+            projectRoot,
+            securityAgentName,
+            sidecarBudget,
+            true,
+            securityReviewerModel,
+          ),
         ]);
       } else {
         reviewResult = await runSidecar(
@@ -84,6 +105,7 @@ Focus on auth, validation, secrets, injection, and unsafe shell/file handling in
           reviewAgentName,
           sidecarBudget,
           false,
+          reviewerModel,
         );
         securityResult = await runSidecar(
           securityPrompt,
@@ -92,6 +114,7 @@ Focus on auth, validation, secrets, injection, and unsafe shell/file handling in
           securityAgentName,
           sidecarBudget,
           false,
+          securityReviewerModel,
         );
       }
     } finally {

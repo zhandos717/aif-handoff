@@ -343,4 +343,63 @@ describe("roadmapGeneration", () => {
       expect(result.byPhase[2]).toEqual({ created: 2, skipped: 0 });
     });
   });
+
+  describe("model configuration", () => {
+    it("generateRoadmapFile uses configured model from env", async () => {
+      const { projectId } = createProjectWithDescription("# My App\nA todo app");
+      const originalBaseUrl = process.env.ANTHROPIC_BASE_URL;
+      delete process.env.ANTHROPIC_BASE_URL;
+
+      mockQuery.mockImplementation(async function* () {
+        yield {
+          type: "result",
+          subtype: "success",
+          result: "# Project Roadmap\n\n## Milestones\n\n- [ ] **Setup** — init\n",
+          usage: {},
+          total_cost_usd: 0,
+        };
+      });
+
+      await generateRoadmapFile({ projectId });
+
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+      const callOptions = mockQuery.mock.calls[0][0].options;
+      expect(callOptions).toHaveProperty("model");
+
+      if (originalBaseUrl) {
+        process.env.ANTHROPIC_BASE_URL = originalBaseUrl;
+      }
+    });
+
+    it("generateRoadmapTasks uses configured extraction model from env", async () => {
+      const { projectId } = createProjectWithRoadmap("# Roadmap\n- [ ] Task A");
+      const originalBaseUrl = process.env.ANTHROPIC_BASE_URL;
+      delete process.env.ANTHROPIC_BASE_URL;
+
+      mockQuery.mockImplementation(async function* () {
+        yield {
+          type: "result",
+          subtype: "success",
+          result: JSON.stringify({
+            alias: "v1",
+            tasks: [
+              { title: "Task A", description: "Do A", phase: 1, phaseName: "Setup", sequence: 1 },
+            ],
+          }),
+          usage: {},
+          total_cost_usd: 0,
+        };
+      });
+
+      await generateRoadmapTasks({ projectId, roadmapAlias: "v1" });
+
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+      const callOptions = mockQuery.mock.calls[0][0].options;
+      expect(callOptions).toHaveProperty("model");
+
+      if (originalBaseUrl) {
+        process.env.ANTHROPIC_BASE_URL = originalBaseUrl;
+      }
+    });
+  });
 });

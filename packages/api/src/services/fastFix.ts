@@ -1,5 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { parseAttachments, modelOption } from "@aif/shared";
+import { parseAttachments, modelOption, getEnv, resolveModel } from "@aif/shared";
 import { incrementTaskTokenUsage } from "@aif/data";
 
 interface FastFixComment {
@@ -52,6 +52,8 @@ function formatLatestCommentForPrompt(comment: FastFixComment): string {
 }
 
 export async function runFastFixQuery(input: RunFastFixQueryInput): Promise<string> {
+  const env = getEnv();
+  const fastFixModel = resolveModel(env.FAST_FIX_MODEL, "haiku");
   const includeFileUpdateStep = input.shouldTryFileUpdate ?? true;
   const prompt = input.priorAttempt
     ? `You are editing an existing implementation plan markdown.
@@ -123,7 +125,7 @@ ${
       cwd: input.projectRoot,
       env: { ...process.env, HANDOFF_MODE: "1", HANDOFF_TASK_ID: input.taskId },
       settingSources: ["project"],
-      ...modelOption("haiku"),
+      ...modelOption(fastFixModel),
       systemPrompt: {
         type: "preset",
         preset: "claude_code",

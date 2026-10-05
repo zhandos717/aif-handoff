@@ -81,6 +81,16 @@ const envSchema = z.object({
     .default(true),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_USER_ID: z.string().optional(),
+  PLANNER_MODEL: z.string().optional(),
+  PLAN_CHECKER_MODEL: z.string().optional(),
+  IMPLEMENTER_MODEL: z.string().optional(),
+  REVIEWER_MODEL: z.string().optional(),
+  SECURITY_REVIEWER_MODEL: z.string().optional(),
+  FAST_FIX_MODEL: z.string().optional(),
+  ROADMAP_MODEL: z.string().optional(),
+  ROADMAP_EXTRACTION_MODEL: z.string().optional(),
+  AI_BACKEND: z.enum(["claude", "opencode"]).default("claude"),
+  OPENCODE_PATH: z.string().default("/opt/homebrew/bin/opencode"),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -109,6 +119,23 @@ export function getEnv(): Env {
     },
     "Resolved activity-log config",
   );
+  log.debug(
+    {
+      planner: _env.PLANNER_MODEL,
+      planChecker: _env.PLAN_CHECKER_MODEL,
+      implementer: _env.IMPLEMENTER_MODEL,
+      reviewer: _env.REVIEWER_MODEL,
+      securityReviewer: _env.SECURITY_REVIEWER_MODEL,
+      fastFix: _env.FAST_FIX_MODEL,
+      roadmap: _env.ROADMAP_MODEL,
+      roadmapExtraction: _env.ROADMAP_EXTRACTION_MODEL,
+    },
+    "Resolved model config",
+  );
+  log.debug(
+    { backend: _env.AI_BACKEND, opencodePath: _env.OPENCODE_PATH },
+    "Resolved AI backend config",
+  );
   return _env;
 }
 
@@ -118,6 +145,17 @@ export function getEnv(): Env {
  */
 export function modelOption(model: string): { model: string } | Record<string, never> {
   return process.env.ANTHROPIC_BASE_URL ? {} : { model };
+}
+
+/**
+ * Returns the env-configured model if set, otherwise the fallback.
+ * Centralizes model defaults so they can be overridden via env vars.
+ */
+export function resolveModel(envModel: string | undefined, fallback: string): string {
+  if (envModel && envModel.trim().length > 0) {
+    return envModel.trim();
+  }
+  return fallback;
 }
 
 /** Validate env without caching — useful for testing */

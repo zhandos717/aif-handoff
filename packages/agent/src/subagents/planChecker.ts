@@ -1,5 +1,5 @@
 import { findProjectById, findTaskById, persistTaskPlanForTask } from "@aif/data";
-import { logger, looksLikeFullPlanUpdate } from "@aif/shared";
+import { logger, looksLikeFullPlanUpdate, getEnv, resolveModel } from "@aif/shared";
 import { executeSubagentQuery } from "../subagentQuery.js";
 
 const log = logger("plan-checker");
@@ -29,6 +29,8 @@ export async function runPlanChecker(taskId: string, projectRoot: string): Promi
   }
   const project = findProjectById(task.projectId);
   const planCheckerBudget = project?.planCheckerMaxBudgetUsd ?? null;
+  const env = getEnv();
+  const planCheckerModel = resolveModel(env.PLAN_CHECKER_MODEL, "haiku");
 
   log.info({ taskId, title: task.title }, "Starting plan-checker agent");
 
@@ -53,6 +55,7 @@ Requirements:
     agentName: AGENT_NAME,
     prompt,
     maxBudgetUsd: planCheckerBudget,
+    model: planCheckerModel,
   });
 
   const normalizedPlan = normalizeMarkdownFence(resultText);

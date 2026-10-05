@@ -220,4 +220,33 @@ describe("fastFix service", () => {
       ),
     ).rejects.toThrow("timed out");
   });
+
+  it("uses configured FAST_FIX_MODEL from env when set", async () => {
+    const originalBaseUrl = process.env.ANTHROPIC_BASE_URL;
+    delete process.env.ANTHROPIC_BASE_URL;
+
+    mockQuery.mockImplementation(successResult("## Plan with custom model"));
+
+    await runFastFixQuery({
+      taskId: "task-model",
+      taskTitle: "Task",
+      taskDescription: "Desc",
+      latestComment: {
+        author: "human",
+        message: "Update model",
+        attachments: "[]",
+        createdAt: "2026-03-28T00:00:00.000Z",
+      },
+      projectRoot: process.cwd(),
+      planPath: ".ai-factory/PLAN.md",
+      previousPlan: "## Old plan",
+    });
+
+    const callOptions = mockQuery.mock.calls[0][0].options;
+    expect(callOptions).toHaveProperty("model");
+
+    if (originalBaseUrl) {
+      process.env.ANTHROPIC_BASE_URL = originalBaseUrl;
+    }
+  });
 });

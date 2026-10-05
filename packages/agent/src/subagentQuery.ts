@@ -5,7 +5,7 @@ import {
   saveTaskSessionId,
   getTaskSessionId,
 } from "@aif/data";
-import { getEnv, logger } from "@aif/shared";
+import { getEnv, logger, modelOption } from "@aif/shared";
 import { createActivityLogger, createSubagentLogger, logActivity, getClaudePath } from "./hooks.js";
 import { writeQueryAudit } from "./queryAudit.js";
 import {
@@ -29,6 +29,8 @@ export interface SubagentQueryOptions {
   maxBudgetUsd?: number | null;
   /** Agent definition name for extraArgs. Omit for skill-based invocations (e.g. isFix planner). */
   agent?: string;
+  /** Claude model to use. Falls back to Claude Code default when unset. */
+  model?: string;
   /** Additional SubagentStart hooks beyond the default activity/subagent loggers. */
   extraSubagentStartHooks?: HookCallback[];
   /** Whether to skip code review stage (implementing → done instead of implementing → review). */
@@ -158,6 +160,7 @@ async function runQueryAttempt(
       ...(agent ? { extraArgs: { agent } } : {}),
       ...(maxBudgetUsd == null ? {} : { maxBudgetUsd }),
       ...(existingSessionId ? { resume: existingSessionId } : {}),
+      ...modelOption(options.model ?? "sonnet"),
       stderr: onStderr,
       hooks: {
         PostToolUse: [{ hooks: [createActivityLogger(taskId)] }],
@@ -250,6 +253,8 @@ export async function executeSubagentQuery(
     queryStartRetryDelayMs = env.AGENT_QUERY_START_RETRY_DELAY_MS,
   } = options;
 
+  log.debug({ taskId, agentName, model: options.model }, "Executing subagent query");
+
   let resultText = "";
   const stderrCollector = createClaudeStderrCollector();
 
@@ -263,6 +268,7 @@ export async function executeSubagentQuery(
     projectRoot,
     prompt,
     options: {
+      model: options.model,
       settingSources: ["project"],
       maxBudgetUsd,
       systemPrompt: {

@@ -16,6 +16,8 @@ import {
   looksLikeFullPlanUpdate,
   modelOption,
   getProjectConfig,
+  getEnv,
+  resolveModel,
 } from "@aif/shared";
 import { logActivity } from "../hooks.js";
 import { executeSubagentQuery } from "../subagentQuery.js";
@@ -96,6 +98,8 @@ async function runChecklistSyncQuery(input: {
   implementationResult: string;
 }): Promise<string> {
   let resultText = "";
+  const env = getEnv();
+  const checklistModel = resolveModel(env.FAST_FIX_MODEL, "haiku");
   const prompt = `You are finalizing task checklist state in a markdown implementation plan.
 
 TASK TITLE:
@@ -126,7 +130,7 @@ Requirements:
       cwd: input.projectRoot,
       env: { ...process.env, HANDOFF_MODE: "1", HANDOFF_TASK_ID: input.task.id },
       settingSources: ["project"],
-      ...modelOption("haiku"),
+      ...modelOption(checklistModel),
       systemPrompt: {
         type: "preset",
         preset: "claude_code",
@@ -162,6 +166,8 @@ export async function runImplementer(taskId: string, projectRoot: string): Promi
   const implementerBudget = project?.implementerMaxBudgetUsd ?? null;
   const useSubagents = task.useSubagents;
   const executionName = useSubagents ? AGENT_NAME : "aif-implement";
+  const env = getEnv();
+  const implementerModel = resolveModel(env.IMPLEMENTER_MODEL, "sonnet");
   const cfg = getProjectConfig(projectRoot);
   const canonicalPlan = readCanonicalPlan(task, projectRoot);
   const selectedPlan = canonicalPlan ?? task.plan;
@@ -239,6 +245,7 @@ Execution rules:
     maxBudgetUsd: implementerBudget,
     agent: useSubagents ? AGENT_NAME : undefined,
     skipReview: task.skipReview ?? false,
+    model: implementerModel,
   });
 
   let finalResultText = resultText;

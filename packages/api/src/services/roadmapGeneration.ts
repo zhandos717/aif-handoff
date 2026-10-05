@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { z } from "zod";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { logger, getEnv, modelOption, getProjectConfig } from "@aif/shared";
+import { logger, getEnv, modelOption, getProjectConfig, resolveModel } from "@aif/shared";
 import {
   createTask,
   findProjectById,
@@ -100,6 +100,8 @@ export async function generateRoadmapFile(
     vision: vision ?? null,
   });
 
+  const env = getEnv();
+  const roadmapModel = resolveModel(env.ROADMAP_MODEL, "sonnet");
   let rawResult = "";
   let failedSubtype: string | null = null;
   try {
@@ -109,7 +111,7 @@ export async function generateRoadmapFile(
         cwd: project.rootPath,
         env: { ...process.env, HANDOFF_MODE: "1" },
         settingSources: ["project"],
-        ...modelOption("sonnet"),
+        ...modelOption(roadmapModel),
         systemPrompt: {
           type: "preset",
           preset: "claude_code",
@@ -232,6 +234,8 @@ export async function generateRoadmapTasks(
 
   // 2. Query Agent SDK for strict JSON conversion
   const prompt = buildExtractionPrompt(roadmapContent, roadmapAlias);
+  const env = getEnv();
+  const roadmapExtractionModel = resolveModel(env.ROADMAP_EXTRACTION_MODEL, "haiku");
 
   let rawResult = "";
   let failedSubtype: string | null = null;
@@ -242,7 +246,7 @@ export async function generateRoadmapTasks(
         cwd: project.rootPath,
         env: { ...process.env, HANDOFF_MODE: "1" },
         settingSources: ["project"],
-        ...modelOption("haiku"),
+        ...modelOption(roadmapExtractionModel),
         systemPrompt: {
           type: "preset",
           preset: "claude_code",

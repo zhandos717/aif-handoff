@@ -1,7 +1,7 @@
 language:
-  ui: en
-  artifacts: en
-  technical_terms: keep
+  ui: ru
+  artifacts: ru
+  technical_terms: translate
 paths:
   description: .ai-factory/DESCRIPTION.md
   architecture: .ai-factory/ARCHITECTURE.md

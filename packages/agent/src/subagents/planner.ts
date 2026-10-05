@@ -1,7 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { findProjectById, findTaskById, listTaskComments, persistTaskPlanForTask } from "@aif/data";
-import { logger, formatAttachmentsForPrompt, getProjectConfig } from "@aif/shared";
+import {
+  logger,
+  formatAttachmentsForPrompt,
+  getProjectConfig,
+  getEnv,
+  resolveModel,
+} from "@aif/shared";
 import { executeSubagentQuery } from "../subagentQuery.js";
 
 const log = logger("planner");
@@ -127,6 +133,8 @@ export async function runPlanner(taskId: string, projectRoot: string): Promise<v
   log.info({ taskId, title: task.title, isFix: task.isFix }, "Starting planning flow");
   const project = findProjectById(task.projectId);
   const plannerBudget = project?.plannerMaxBudgetUsd ?? null;
+  const env = getEnv();
+  const plannerModel = resolveModel(env.PLANNER_MODEL, "sonnet");
 
   const taskAttachmentsForPrompt = formatAttachmentsForPrompt(task.attachments);
   const commentsForPrompt = formatCommentsForPrompt(comments);
@@ -166,6 +174,7 @@ ${taskContext}`;
     prompt,
     maxBudgetUsd: plannerBudget,
     agent: task.isFix || !useSubagents ? undefined : AGENT_NAME,
+    model: plannerModel,
   });
 
   const diskPlan = readPlanFromDisk(projectRoot, rawResult, !!task.isFix, planPath);
